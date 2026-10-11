@@ -8,6 +8,8 @@
 注意：只合并 v2ray 通用格式（base64 节点串）。Clash YAML 订阅
 （如 ZYFXS 的 youtube@ZYFXS---{日}c / 旧 *-c-youtube@ZYFXS）不参与合并，
 请在 Karing 里另加。
+
+过滤：中国大陆节点会被去掉（按 remark 识别，港澳台保留）。
 """
 import base64
 import datetime
@@ -159,6 +161,46 @@ def decode_if_base64(data: bytes) -> str:
         return text
 
 
+# 港澳台标识：含这些的一律保留，不视为大陆节点
+_KEEP_PAT = re.compile(
+    r"香港|澳门|台灣|台湾|Hong\s?Kong|Macau|Macao|Taiwan"
+    r"|(?<![A-Za-z])HK(?![A-Za-z])|(?<![A-Za-z])TW(?![A-Za-z])"
+    r"|(?<![A-Za-z])MO(?![A-Za-z])|🇭🇰|🇲🇴|🇹🇼",
+    re.I,
+)
+# 大陆标识：中国（不含中国香港/台湾/澳门）、大陆、🇨🇳、China、独立 CN
+_CN_PAT = re.compile(
+    r"🇨🇳|大陆|中国(?!香港|台湾|澳门)"
+    r"|(?<![A-Za-z])China(?![A-Za-z])|(?<![A-Za-z])CN(?![A-Za-z])",
+    re.I,
+)
+
+
+def node_remark(line: str) -> str:
+    """提取节点链接的 remark（# 后面的名称，URL 解码）。"""
+    try:
+        scheme, rest = line.split("://", 1)
+        if "#" in rest:
+            return urllib.parse.unquote(rest.split("#", 1)[1])
+        if scheme == "vmess":
+            padded = rest + "=" * (-len(rest) % 4)
+            d = json.loads(base64.b64decode(padded).decode("utf-8", errors="ignore"))
+            return d.get("ps", "")
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
+
+
+def is_mainland_cn(line: str) -> bool:
+    """按 remark 判断是否为中国大陆节点（港澳台除外）。无 remark 的不误判。"""
+    r = node_remark(line)
+    if not r:
+        return False
+    if _KEEP_PAT.search(r):
+        return False
+    return bool(_CN_PAT.search(r))
+
+
 def main() -> None:
     seen, nodes = set(), []
     total = 0
@@ -176,6 +218,12 @@ def main() -> None:
                 nodes.append(line)
         print(f"[OK] {name}: +{len(nodes) - before} 个 (累计 {len(nodes)})")
         total += 1
+
+    # 过滤中国大陆节点（用户要求，港澳台保留）
+    dropped = sum(1 for l in nodes if is_mainland_cn(l))
+    nodes = [l for l in nodes if not is_mainland_cn(l)]
+    if dropped:
+        print(f"[过滤] 去掉中国大陆节点 {dropped} 个，剩余 {len(nodes)} 个")
 
     merged = "\n".join(nodes)
     with open("merged.txt", "w", encoding="utf-8") as f:
