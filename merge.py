@@ -21,10 +21,11 @@ import urllib.request
 
 ZYFXS_REPO = "ZYFXS/ZYFXS001"
 # ZYFXS 的 v2ray 文件名会不定期改版，已知格式：
-#   新格式（2026-10-10 起）: youtube@ZYFXS---{日}v   如 youtube@ZYFXS---10v
+#   2026-10-12 起：youtube@ZYFXS--{日}v（双横线）     如 youtube@ZYFXS--12v
+#   2026-10-10 起：youtube@ZYFXS---{日}v（三横线）    如 youtube@ZYFXS---10v
 #   旧格式：{日}-v-youtube@ZYFXS                       如 9-v-youtube@ZYFXS
 ZYFXS_NAME_PATTERNS = (
-    r"youtube@ZYFXS---+(\d+)v",
+    r"youtube@ZYFXS-{2,}(\d+)v",   # 双横线及以上，兼容未来再改版
     r"(\d+)-v-youtube@ZYFXS",
 )
 UA = {"User-Agent": "Mozilla/5.0"}
