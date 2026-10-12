@@ -1,0 +1,39 @@
+name: 每日合并节点订阅
+
+on:
+  schedule:
+    # 每天 06:00 UTC = 北京时间 14:00
+    - cron: "0 6 * * *"
+  workflow_dispatch:  # 允许在网页上手动点 Run
+  push:
+    paths:
+      - "merge.py"
+      - ".github/workflows/daily-merge.yml"
+      # 注意：nodes.txt / merged-raw.txt 的提交不会触发，避免循环
+
+permissions:
+  contents: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 合并订阅
+        run: |
+          python merge.py
+          # nodes.txt 保持明文（一行一个），与仓库现有格式一致，Karing 直接识别
+          cp merged-raw.txt nodes.txt
+
+      - name: 提交更新
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add nodes.txt merged-raw.txt
+          git diff --cached --quiet || git commit -m "每日自动合并节点 $(date -u +%Y-%m-%d)"
+          git push
