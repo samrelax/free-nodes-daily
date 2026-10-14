@@ -21,11 +21,13 @@ import urllib.request
 
 ZYFXS_REPO = "ZYFXS/ZYFXS001"
 # ZYFXS 的 v2ray 文件名会不定期改版，已知格式：
+#   2026-10-13 起：{日}v--youtube@ZYFXS（日期+v 前缀） 如 13v--youtube@ZYFXS
 #   2026-10-12 起：youtube@ZYFXS--{日}v（双横线）     如 youtube@ZYFXS--12v
 #   2026-10-10 起：youtube@ZYFXS---{日}v（三横线）    如 youtube@ZYFXS---10v
 #   旧格式：{日}-v-youtube@ZYFXS                       如 9-v-youtube@ZYFXS
 ZYFXS_NAME_PATTERNS = (
     r"youtube@ZYFXS-{2,}(\d+)v",   # 双横线及以上，兼容未来再改版
+    r"(\d+)v-{2,}youtube@ZYFXS",   # 2026-10-13 起：日期+v 前缀
     r"(\d+)-v-youtube@ZYFXS",
 )
 UA = {"User-Agent": "Mozilla/5.0"}
@@ -100,7 +102,8 @@ def zyfxs_fallback_url(reason) -> str:
     today = datetime.datetime.now(
         datetime.timezone(datetime.timedelta(hours=8))).date()
     for d in (today, today - datetime.timedelta(days=1)):
-        names = [f"youtube@ZYFXS---{d.day}v",      # 新格式
+        names = [f"{d.day}v--youtube@ZYFXS",       # 2026-10-13 起格式
+                 f"youtube@ZYFXS---{d.day}v",      # 2026-10-12 格式
                  f"{d.day}-v-youtube@ZYFXS"]        # 旧格式
         for name in names:
             url = ("https://raw.githubusercontent.com/ZYFXS/ZYFXS001/"
@@ -146,6 +149,9 @@ def source_urls():
             "https://ghfast.top/https://raw.githubusercontent.com/free18/v2ray/refs/heads/main/v.txt",
         ]),
         ("FreeProxyGo v2ray（key 每日轮换，自动读取）", [proxygo_latest_url()]),
+        ("Ruk1ng001/freeSub（GitHub 每日更新）", [
+            "https://raw.githubusercontent.com/Ruk1ng001/freeSub/main/v2ray",
+        ]),
         # 想加更多源？按 ("名称", ["地址1", "地址2(备用)"]) 格式追加。
         # 必须是 base64 或明文的 v2ray 通用订阅；已停更的源请及时移除。
     ]
