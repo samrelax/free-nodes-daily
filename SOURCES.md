@@ -13,6 +13,8 @@ GitHub Actions 每天北京时间 14:00 自动合并使用的节点源。`merge.
 | free18/v2ray（GitHub） | `https://raw.githubusercontent.com/free18/v2ray/refs/heads/main/v.txt` | 每日 | base64 v2ray 通用 | pan635/v2ray（VV科技）同源；另有 Clash Meta 版 `c.yaml`（不参与合并，Karing 可另加） |
 | junjun266/FreeProxyGo（GitHub） | `https://sub.proxygo.org/v2ray.php?key=…`（key 每日轮换，以其 README 当天为准） | 每 6 小时 | base64 v2ray 通用 | merge.py 自动从 README 读取当日 key；2026-10-12 起 key 改为 README 动态读取 |
 | Ruk1ng001/freeSub（GitHub） | `https://raw.githubusercontent.com/Ruk1ng001/freeSub/main/v2ray` | 每日 | base64 v2ray 通用 | 2026-10-12 首次发现并验证有效；2026-10-13 复验 HTTP 200，base64 解码出 82 个有效节点（vmess 55 / ss 14 / vless 11 / trojan 2），正式纳入合并 |
+| Alirewa/V2ray-Configs（GitHub） | `https://raw.githubusercontent.com/Alirewa/V2ray-Configs/main/sub1.txt`（sub2/sub3 同理） | 每 30 分钟 | base64 v2ray 通用 | 180+ Telegram 频道聚合，按质量打分排序；sub1/sub2/sub3 为 Top300 优质节点（TLS/443/域名优先）；2026-10-14 验证 sub1 解码出 100 个有效节点 |
+| mahdibland/V2RayAggregator（GitHub） | `https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/Eternity` | 高频（每日多次） | 明文 v2ray 通用 | 老牌聚合仓库；2026-10-14 验证 200 个有效节点（ss 为主） |
 
 ## 已移除 / 未纳入
 
