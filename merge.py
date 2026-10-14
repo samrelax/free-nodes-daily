@@ -152,6 +152,18 @@ def source_urls():
         ("Ruk1ng001/freeSub（GitHub 每日更新）", [
             "https://raw.githubusercontent.com/Ruk1ng001/freeSub/main/v2ray",
         ]),
+        ("Alirewa/V2ray-Configs sub1（质量打分 Top100，每30分钟更新）", [
+            "https://raw.githubusercontent.com/Alirewa/V2ray-Configs/main/sub1.txt",
+        ]),
+        ("Alirewa/V2ray-Configs sub2（质量打分 101-200）", [
+            "https://raw.githubusercontent.com/Alirewa/V2ray-Configs/main/sub2.txt",
+        ]),
+        ("Alirewa/V2ray-Configs sub3（质量打分 201-300）", [
+            "https://raw.githubusercontent.com/Alirewa/V2ray-Configs/main/sub3.txt",
+        ]),
+        ("mahdibland/V2RayAggregator Eternity（老牌聚合，频繁更新）", [
+            "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/Eternity",
+        ]),
         # 想加更多源？按 ("名称", ["地址1", "地址2(备用)"]) 格式追加。
         # 必须是 base64 或明文的 v2ray 通用订阅；已停更的源请及时移除。
     ]
