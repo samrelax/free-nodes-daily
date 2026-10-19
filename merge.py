@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""合并多个 v2ray/base64 格式的节点订阅，去重后输出合并订阅文件。
+"""合并资源分享师 ZYFXS 每日更新的 v2ray 节点订阅，去重后输出合并订阅文件。
 
 用法: python merge.py
 输出: merged.txt（base64 订阅，Karing/v2ray 通用格式）
       merged-raw.txt（明文节点，方便检查）
 
 注意：只合并 v2ray 通用格式（base64 节点串）。Clash YAML 订阅
-（如 ZYFXS 的 youtube@ZYFXS---{日}c / 旧 *-c-youtube@ZYFXS）不参与合并，
-请在 Karing 里另加。
+（如 youtube@ZYFXS-18c）不参与合并，请在 Karing 里另加。
+
+文件发现不依赖文件名格式：UP 主频繁改名（如 15V-youtube@ZYFXS、
+youtube@ZYFXS--12v、youtube@ZYFXS-18v），脚本按"含 zyfxs、
+非 Clash、提交时间最新、内容校验为 v2ray 订阅"自动挑选。
 
 过滤：中国大陆节点会被去掉（按 remark 识别，港澳台保留）。
 """
@@ -20,19 +23,6 @@ import urllib.parse
 import urllib.request
 
 ZYFXS_REPO = "ZYFXS/ZYFXS001"
-# ZYFXS 的 v2ray 文件名会不定期改版，已知格式：
-#   2026-10-15 起：{日}V-youtube@ZYFXS（V 改大写）   如 15V-youtube@ZYFXS
-#   2026-10-14 起：{日}v-youtube@ZYFXS（单横线）     如 14v-youtube@ZYFXS
-#   2026-10-13 起：{日}v--youtube@ZYFXS（日期+v 前缀） 如 13v--youtube@ZYFXS
-#   2026-10-12 起：youtube@ZYFXS--{日}v（双横线）     如 youtube@ZYFXS--12v
-#   2026-10-10 起：youtube@ZYFXS---{日}v（三横线）    如 youtube@ZYFXS---10v
-#   旧格式：{日}-v-youtube@ZYFXS                       如 9-v-youtube@ZYFXS
-ZYFXS_NAME_PATTERNS = (
-    r"youtube@ZYFXS-{2,}(\d+)v",   # 双横线及以上，兼容未来再改版
-    r"(\d+)[Vv]-{2,}youtube@ZYFXS",  # 2026-10-13 起：日期+V/v 前缀（大小写兼容）
-    r"(\d+)[Vv]-youtube@ZYFXS",      # 2026-10-14/15 起：单横线，V 大小写兼容
-    r"(\d+)-v-youtube@ZYFXS",
-)
 UA = {"User-Agent": "Mozilla/5.0"}
 
 SCHEMES = (
@@ -60,9 +50,44 @@ def fetch_first(urls, timeout=30):
     raise RuntimeError(f"全部候选地址失败: {urls} ({last_err})")
 
 
+def _zyfxs_candidate_files(items):
+    """从仓库目录列表中挑出疑似 v2ray 订阅文件的候选。
+
+    不依赖具体文件名格式（UP 主频繁改名）：文件名含 zyfxs、
+    不是代码/文档、不是 Clash 订阅（以 c/C 结尾）的即纳入。
+    """
+    cands = []
+    for it in items:
+        if not isinstance(it, dict) or it.get("type") != "file":
+            continue
+        name = it.get("name", "")
+        low = name.lower()
+        if "zyfxs" not in low:
+            continue
+        if low.endswith((".js", ".md", ".txt", ".json", ".yml", ".yaml",
+                         ".png", ".jpg", ".jpeg")):
+            continue
+        if low.endswith("c"):
+            continue  # Clash 订阅（*-c / *-C 结尾），不参与合并
+        cands.append(it)
+    return cands
+
+
+def _looks_like_v2ray_subscription(data: bytes) -> bool:
+    """内容校验：解码后是否包含 v2ray 节点链接行。"""
+    for line in decode_if_base64(data).splitlines():
+        if line.strip().startswith(SCHEMES):
+            return True
+    return False
+
+
 def zyfxs_latest_url() -> str:
-    """从 GitHub API 取 ZYFXS001 仓库目录，按提交时间选出最新的
-    v2ray 文件（文件名里的日期会天天变，格式也可能改版）。"""
+    """从 GitHub API 取 ZYFXS001 仓库目录，挑出最新的 v2ray 订阅文件。
+
+    不依赖文件名格式：筛选含 zyfxs 的文件、排除 Clash 订阅与代码
+    文档，按提交时间倒序逐个下载做内容校验，第一个确认为 v2ray
+    订阅的即采用。
+    """
     try:
         data = fetch(f"https://api.github.com/repos/{ZYFXS_REPO}/contents/",
                      timeout=20)
@@ -70,12 +95,9 @@ def zyfxs_latest_url() -> str:
     except Exception as e:  # noqa: BLE001
         return zyfxs_fallback_url(e)
 
-    cands = [it for it in items
-             if isinstance(it, dict)
-             and any(re.fullmatch(p, it.get("name", ""))
-                     for p in ZYFXS_NAME_PATTERNS)]
+    cands = _zyfxs_candidate_files(items)
     if not cands:
-        return zyfxs_fallback_url("目录中没有找到匹配的 v2ray 文件")
+        return zyfxs_fallback_url("目录中没有找到疑似 v2ray 订阅文件")
 
     def commit_date(item):
         try:
@@ -89,12 +111,22 @@ def zyfxs_latest_url() -> str:
             return ""
 
     cands.sort(key=commit_date, reverse=True)
-    best = cands[0]
-    url = best.get("download_url")
-    if url:
-        print(f"[信息] ZYFXS 选用最新文件: {best['name']}", file=sys.stderr)
-        return url
-    return zyfxs_fallback_url("API 未返回 download_url")
+    for it in cands:
+        url = it.get("download_url")
+        if not url:
+            continue
+        try:
+            data = fetch(url, timeout=30)
+        except Exception as e:  # noqa: BLE001
+            print(f"[警告] ZYFXS 候选 {it['name']} 下载失败: {e}",
+                  file=sys.stderr)
+            continue
+        if data and len(data) > 100 and _looks_like_v2ray_subscription(data):
+            print(f"[信息] ZYFXS 选用最新文件: {it['name']}", file=sys.stderr)
+            return url
+        print(f"[警告] ZYFXS 候选 {it['name']} 内容不是 v2ray 订阅，跳过",
+              file=sys.stderr)
+    return zyfxs_fallback_url("所有候选文件内容校验均未通过")
 
 
 def zyfxs_fallback_url(reason) -> str:
@@ -104,13 +136,21 @@ def zyfxs_fallback_url(reason) -> str:
           file=sys.stderr)
     today = datetime.datetime.now(
         datetime.timezone(datetime.timedelta(hours=8))).date()
+    tried = set()
     for d in (today, today - datetime.timedelta(days=1)):
-        names = [f"{d.day}V-youtube@ZYFXS",        # 2026-10-15 起格式（V 大写）
-                 f"{d.day}v-youtube@ZYFXS",        # 2026-10-14 起格式
-                 f"{d.day}v--youtube@ZYFXS",       # 2026-10-13 起格式
-                 f"youtube@ZYFXS---{d.day}v",      # 2026-10-12 格式
-                 f"{d.day}-v-youtube@ZYFXS"]        # 旧格式
+        # 已知历史格式全部试一遍（含 V/v 大小写，raw URL 区分大小写）
+        names = []
+        for day in (d.day,):
+            names += [f"{day}V-youtube@ZYFXS", f"{day}v-youtube@ZYFXS",
+                      f"{day}V--youtube@ZYFXS", f"{day}v--youtube@ZYFXS",
+                      f"youtube@ZYFXS-{day}V", f"youtube@ZYFXS-{day}v",
+                      f"youtube@ZYFXS--{day}V", f"youtube@ZYFXS--{day}v",
+                      f"youtube@ZYFXS---{day}V", f"youtube@ZYFXS---{day}v",
+                      f"{day}-v-youtube@ZYFXS"]
         for name in names:
+            if name in tried:
+                continue
+            tried.add(name)
             url = ("https://raw.githubusercontent.com/ZYFXS/ZYFXS001/"
                    f"refs/heads/main/{urllib.parse.quote(name, safe='')}")
             try:
@@ -123,52 +163,11 @@ def zyfxs_fallback_url(reason) -> str:
     raise RuntimeError("ZYFXS 自动解析与日期回退全部失败")
 
 
-def proxygo_latest_url() -> str:
-    """FreeProxyGo 的订阅 key 每天轮换（写死会很快失效）。
-    从其 GitHub README 里抓当前有效的 key，抓不到就回退到最近
-    已知可用的 key 列表。"""
-    try:
-        data = fetch(
-            "https://raw.githubusercontent.com/junjun266/FreeProxyGo/main/README.md",
-            timeout=20)
-        keys = re.findall(r"sub\.proxygo\.org/v2ray\.php\?key=([a-f0-9]+)",
-                          data.decode("utf-8", errors="ignore"))
-        if keys:
-            print(f"[信息] FreeProxyGo 当前 key: {keys[0]}", file=sys.stderr)
-            return f"https://sub.proxygo.org/v2ray.php?key={keys[0]}"
-        print("[警告] README 里未找到 FreeProxyGo key，用已知 key 回退",
-              file=sys.stderr)
-    except Exception as e:  # noqa: BLE001
-        print(f"[警告] 读取 FreeProxyGo README 失败({e})，用已知 key 回退",
-              file=sys.stderr)
-    # 最近已知可用的 key（key 会轮换，这里只作应急回退）
-    return "https://sub.proxygo.org/v2ray.php?key=b39cc8182b56365ce019a4df250f0714"
-
-
 def source_urls():
-    """返回 (名称, 候选地址列表)。"""
+    """返回 (名称, 候选地址列表)。2026-10-19 起只保留资源分享师单源
+    （其余源速度慢，已按用户要求移除）。"""
     return [
         ("资源分享师 ZYFXS（日更，自动取最新）", [zyfxs_latest_url()]),
-        ("free18/v2ray 通用订阅", [
-            "https://raw.githubusercontent.com/free18/v2ray/refs/heads/main/v.txt",
-            "https://ghfast.top/https://raw.githubusercontent.com/free18/v2ray/refs/heads/main/v.txt",
-        ]),
-        ("FreeProxyGo v2ray（key 每日轮换，自动读取）", [proxygo_latest_url()]),
-        ("Ruk1ng001/freeSub（GitHub 每日更新）", [
-            "https://raw.githubusercontent.com/Ruk1ng001/freeSub/main/v2ray",
-        ]),
-        ("Alirewa/V2ray-Configs sub1（质量打分 Top100，每30分钟更新）", [
-            "https://raw.githubusercontent.com/Alirewa/V2ray-Configs/main/sub1.txt",
-        ]),
-        ("Alirewa/V2ray-Configs sub2（质量打分 101-200）", [
-            "https://raw.githubusercontent.com/Alirewa/V2ray-Configs/main/sub2.txt",
-        ]),
-        ("Alirewa/V2ray-Configs sub3（质量打分 201-300）", [
-            "https://raw.githubusercontent.com/Alirewa/V2ray-Configs/main/sub3.txt",
-        ]),
-        ("mahdibland/V2RayAggregator Eternity（老牌聚合，频繁更新）", [
-            "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/Eternity",
-        ]),
         # 想加更多源？按 ("名称", ["地址1", "地址2(备用)"]) 格式追加。
         # 必须是 base64 或明文的 v2ray 通用订阅；已停更的源请及时移除。
     ]
