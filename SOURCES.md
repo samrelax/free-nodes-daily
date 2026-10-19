@@ -5,21 +5,17 @@ GitHub Actions 每天北京时间 14:00 自动合并使用的节点源。`merge.
 固定订阅地址（Karing 只需添加一次，之后每天自动更新）：
 `https://raw.githubusercontent.com/samrelax/free-nodes-daily/main/nodes.txt`
 
-## 在用渠道
+## 在用渠道（2026-10-19 起：仅保留资源分享师单源）
 
 | 渠道 | 订阅地址 | 更新频率 | 格式 | 备注 |
 |---|---|---|---|---|
-| 资源分享师 @ZYFXS（YouTube 日更视频） | 自动识别当日文件（`youtube@ZYFXS--{日}v`，双横线及以上；旧格式 `{日}-v-youtube@ZYFXS` 回退） | 每日 | base64 v2ray 通用 | 文件名会不定期改版，merge.py 按提交时间自动选最新，兼容新旧两种命名 |
-| free18/v2ray（GitHub） | `https://raw.githubusercontent.com/free18/v2ray/refs/heads/main/v.txt` | 每日 | base64 v2ray 通用 | pan635/v2ray（VV科技）同源；另有 Clash Meta 版 `c.yaml`（不参与合并，Karing 可另加） |
-| junjun266/FreeProxyGo（GitHub） | `https://sub.proxygo.org/v2ray.php?key=…`（key 每日轮换，以其 README 当天为准） | 每 6 小时 | base64 v2ray 通用 | merge.py 自动从 README 读取当日 key；2026-10-12 起 key 改为 README 动态读取 |
-| Ruk1ng001/freeSub（GitHub） | `https://raw.githubusercontent.com/Ruk1ng001/freeSub/main/v2ray` | 每日 | base64 v2ray 通用 | 2026-10-12 首次发现并验证有效；2026-10-13 复验 HTTP 200，base64 解码出 82 个有效节点（vmess 55 / ss 14 / vless 11 / trojan 2），正式纳入合并 |
-| Alirewa/V2ray-Configs（GitHub） | `https://raw.githubusercontent.com/Alirewa/V2ray-Configs/main/sub1.txt`（sub2/sub3 同理） | 每 30 分钟 | base64 v2ray 通用 | 180+ Telegram 频道聚合，按质量打分排序；sub1/sub2/sub3 为 Top300 优质节点（TLS/443/域名优先）；2026-10-14 验证 sub1 解码出 100 个有效节点 |
-| mahdibland/V2RayAggregator（GitHub） | `https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/Eternity` | 高频（每日多次） | 明文 v2ray 通用 | 老牌聚合仓库；2026-10-14 验证 200 个有效节点（ss 为主） |
+| 资源分享师 @ZYFXS（YouTube 日更视频） | 自动识别当日文件（不依赖文件名格式：按含 zyfxs、非 Clash、提交时间最新、内容校验为 v2ray 订阅自动挑选） | 每日 | base64 v2ray 通用 | 文件名频繁改版已不再是障碍；2026-10-19 重写发现逻辑 |
 
 ## 已移除 / 未纳入
 
 | 渠道 | 状态 |
 |---|---|
+| free18/v2ray、junjun266/FreeProxyGo、Ruk1ng001/freeSub、Alirewa/V2ray-Configs、mahdibland/V2RayAggregator | 2026-10-19 用户要求移除：速度慢，只保留资源分享师单源 |
 | bg0da/Free-Node | 2026-09-05 起停更（仓库更名为 flik6/Free-Node），raw 链接返回空内容，已从合并源移除 |
 | 爱分享的小妾（YouTube 7x24 直播） | 自 2026-10-09 起未获取到可用免费订阅链接（博客打不开、直播实际离线），暂不纳入合并 |
 
