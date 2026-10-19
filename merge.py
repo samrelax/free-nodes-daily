@@ -260,3 +260,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# 2026-10-19 注：.github/workflows/daily-merge.yml 的推送步骤如遇并发推送
+# 导致 non-fast-forward 被拒，需在 GitHub 网页端手工给"提交更新"步骤加上
+# git pull --rebase（App token 无权写 .github/workflows，API 推送 403）。
