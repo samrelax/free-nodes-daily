@@ -13,10 +13,15 @@ youtube@ZYFXS--12v、youtube@ZYFXS-18v），脚本按"含 zyfxs、
 非 Clash、提交时间最新、内容校验为 v2ray 订阅"自动挑选。
 
 过滤：中国大陆节点会被去掉（按 remark 识别，港澳台保留）。
+
+高频轮询（Actions 每 30 分钟跑一次）时，GitHub API 调用走环境变量
+GITHUB_TOKEN（Actions 内置 token，无需手动配置），避免未认证
+60 次/小时限流；没有 token 时退回未认证调用。
 """
 import base64
 import datetime
 import json
+import os
 import re
 import sys
 import urllib.parse
@@ -32,7 +37,11 @@ SCHEMES = (
 
 
 def fetch(url: str, timeout: int = 30) -> bytes:
-    req = urllib.request.Request(url, headers=UA)
+    headers = dict(UA)
+    token = os.environ.get("GITHUB_TOKEN")
+    if token and "api.github.com" in url:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read()
 
@@ -261,6 +270,7 @@ def main() -> None:
 if __name__ == "__main__":
     main()
 
-# 2026-10-19 注：.github/workflows/daily-merge.yml 的推送步骤如遇并发推送
-# 导致 non-fast-forward 被拒，需在 GitHub 网页端手工给"提交更新"步骤加上
-# git pull --rebase（App token 无权写 .github/workflows，API 推送 403）。
+# 2026-10-26 注：新版 .github/workflows/daily-merge.yml（每 30 分钟轮询）
+# 已在"提交更新"步骤加 git pull --rebase 并用 concurrency 串行化运行，
+# 2026-10-19 的并发推送冲突问题随之解决（仍需用户在 GitHub 网页端粘贴
+# 新版 workflow 文件后生效，App token 无权写 .github/workflows，API 推送 403）。
