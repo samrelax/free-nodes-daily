@@ -2,9 +2,10 @@ name: 每日合并节点订阅
 
 on:
   schedule:
-    # 每天 06:00 UTC = 北京时间 14:00
-    - cron: "0 6 * * *"
-  workflow_dispatch:  # 允许在网页上手动点 Run
+    # 每 30 分钟检查一次：资源分享师文件一进仓库，最晚 30 分钟内合并提交
+    # （GitHub 定时任务本身可能晚几分钟到几十分钟，仍远快于原来一天一次）
+    - cron: "*/30 * * * *"
+  workflow_dispatch:  # 允许在网页上手动点 Run，立刻合并一次
   push:
     paths:
       - "merge.py"
@@ -13,6 +14,11 @@ on:
 
 permissions:
   contents: write
+
+# 串行化运行：上一次没跑完时，下一次排队等，不并发推送
+concurrency:
+  group: daily-merge
+  cancel-in-progress: false
 
 jobs:
   merge:
@@ -25,6 +31,10 @@ jobs:
           python-version: "3.12"
 
       - name: 合并订阅
+        env:
+          # Actions 内置 token：merge.py 用它调 GitHub API，避免高频轮询撞上
+          # 未认证 60 次/小时限流；无此变量时退回未认证调用
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python merge.py
           # nodes.txt 保持明文（一行一个），与仓库现有格式一致，Karing 直接识别
@@ -34,6 +44,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # 先拉取再提交，避免多人/多任务并发推送被拒（2026-10-19 的老问题）
+          git pull --rebase
           git add nodes.txt merged-raw.txt
-          git diff --cached --quiet || git commit -m "每日自动合并节点 $(date -u +%Y-%m-%d)"
+          git diff --cached --quiet || git commit -m "自动合并节点 $(TZ=Asia/Shanghai date +%Y-%m-%d\ %H:%M)"
           git push
