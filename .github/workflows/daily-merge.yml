@@ -1,16 +1,16 @@
-name: 每日合并节点订阅
+name: 同步节点订阅
 
 on:
   schedule:
-    # 每 30 分钟检查一次：资源分享师文件一进仓库，最晚 30 分钟内合并提交
+    # 每 30 分钟检查一次：资源分享师文件一进仓库，最晚 30 分钟内同步提交
     # （GitHub 定时任务本身可能晚几分钟到几十分钟，仍远快于原来一天一次）
     - cron: "*/30 * * * *"
-  workflow_dispatch:  # 允许在网页上手动点 Run，立刻合并一次
+  workflow_dispatch:  # 允许在网页上手动点 Run，立刻同步一次
   push:
     paths:
-      - "merge.py"
+      - "sync.py"
       - ".github/workflows/daily-merge.yml"
-      # 注意：nodes.txt / merged-raw.txt 的提交不会触发，避免循环
+      # 注意：nodes.txt 的提交不会触发，避免循环
 
 permissions:
   contents: write
@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  merge:
+  sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,22 +30,26 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: 合并订阅
+      - name: 同步订阅
         env:
-          # Actions 内置 token：merge.py 用它调 GitHub API，避免高频轮询撞上
+          # Actions 内置 token：sync.py 用它调 GitHub API，避免高频轮询撞上
           # 未认证 60 次/小时限流；无此变量时退回未认证调用
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python merge.py
-          # nodes.txt 保持明文（一行一个），与仓库现有格式一致，Karing 直接识别
-          cp merged-raw.txt nodes.txt
+          # 单源原样同步：只有一个源，不合并、不过滤，
+          # sync.py 直接把当日文件明文写入 nodes.txt（Karing 直接识别）
+          python sync.py
 
       - name: 提交更新
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # 先拉取再提交，避免多人/多任务并发推送被拒（2026-10-19 的老问题）
+          # 关键顺序（2026-10-27 失败根因修复）：
+          # 先提交，再 pull --rebase。旧写法先 pull --rebase，
+          # 工作树有未提交的 nodes.txt 改动时 git 直接报错
+          # "cannot pull with rebase: You have unstaged changes"，
+          # 有新节点时必失败、无变化时（工作树干净）才碰巧成功。
+          git add nodes.txt
+          git diff --cached --quiet || git commit -m "同步节点 $(TZ=Asia/Shanghai date +%Y-%m-%d\ %H:%M)"
           git pull --rebase
-          git add nodes.txt merged-raw.txt
-          git diff --cached --quiet || git commit -m "自动合并节点 $(TZ=Asia/Shanghai date +%Y-%m-%d\ %H:%M)"
           git push
